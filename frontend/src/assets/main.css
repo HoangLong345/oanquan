@@ -1,0 +1,24 @@
+@import "./base.css";
+
+#app {
+  font-weight: normal;
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+/*
+  KHỐI @media (min-width: 1024px) ĐÃ BỊ XÓA HOÀN TOÀN
+  VÌ NÓ LÀ NGUYÊN NHÂN GÂY RA LỖI CĂN GIỮA VÀ CÓ LỀ 2 BÊN.
+*/

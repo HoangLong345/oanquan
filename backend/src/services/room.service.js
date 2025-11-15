@@ -1,27 +1,24 @@
-import { rooms } from "../data/rooms.js";
-import { Room } from "../models/room.model.js";
 import { generateId } from "../utils/generateId.js";
+import { rooms } from "../data/rooms.js";
 
 export function createRoom(playerName, socketId) {
   const roomId = generateId(5);
-  const room = new Room(roomId);
 
-  const player = room.addPlayer({ id: socketId, name: playerName });
+  rooms[roomId] = {
+    id: roomId,
+    board: null, // board sẽ được tạo khi join
+    players: [],
+    currentTurnId: null,
+  };
 
-  rooms.set(roomId, room);
-  return { room, player };
-}
+  const player = {
+    id: socketId,
+    name: playerName,
+    symbol: "A",
+    score: 0,
+  };
 
-export function joinRoom(roomId, playerName, socketId) {
-  const room = rooms.get(roomId);
+  rooms[roomId].players.push(player);
 
-  if (!room) throw new Error("Phòng không tồn tại");
-
-  const player = room.addPlayer({ id: socketId, name: playerName });
-
-  return { room, player };
-}
-
-export function getRoom(roomId) {
-  return rooms.get(roomId) || null;
+  return { room: rooms[roomId], player };
 }

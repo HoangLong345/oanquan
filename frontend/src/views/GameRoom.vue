@@ -5,22 +5,24 @@
       Bạn là: <strong>{{ playerName }}</strong>
     </p>
 
-    <!-- ========== PLAYER INFO ========== -->
+    <!-- ===== PLAYER LIST ===== -->
     <PlayerInfo
       :players="players"
       :currentTurnId="currentTurnId"
       class="player-box"
     />
 
-    <!-- ========== GAME BOARD ========== -->
+    <!-- ===== GAME BOARD ===== -->
     <GameBoard
       v-if="board.length"
       :board="board"
-      :canMove="playerId === currentTurnId"
+      :players="players"
+      :currentTurnId="currentTurnId"
+      :playerId="playerId"
       @move="handleMove"
     />
 
-    <!-- ========== CHAT BOX ========== -->
+    <!-- ===== CHAT ===== -->
     <ChatBox :messages="messages" @send="sendMessage" class="chat-box" />
   </div>
 </template>
@@ -32,11 +34,11 @@ import socketService from "../services/socketService";
 
 import ChatBox from "../components/ChatBox.vue";
 import PlayerInfo from "../components/PlayerInfo.vue";
-import GameBoard from "../components/GameBoard.vue"; // cần có file này
+import GameBoard from "../components/GameBoard.vue";
 
-/* =======================================
-                STATE
-======================================= */
+/* ===============================
+            STATE
+================================= */
 
 const route = useRoute();
 
@@ -53,46 +55,49 @@ const currentTurnId = ref("");
 
 const messages = ref([]);
 
-/* =======================================
-              SOCKET HANDLERS
-======================================= */
+/* ===============================
+        SOCKET HANDLERS
+================================= */
 
 onMounted(() => {
-  console.log("▶ Joining room", roomId, "as", playerName);
+  console.log("▶ Join room:", roomId, "as", playerName);
 
-  // gửi join_room
-  socketService.joinRoom(roomId, playerName);
+  // Gửi join_room (đúng theo backend của bạn)
+  socketService.getSocket().emit("room:join", {
+    roomId,
+    playerName,
+  });
 
-  // backend trả về thông tin phòng sau khi join
+  // Backend trả về khi join thành công
   socketService.getSocket().on("room:joined", (data) => {
-    console.log("✔ Joined:", data);
-
+    console.log("✔ room:joined", data);
     playerId.value = data.playerId;
     playerSymbol.value = data.playerSymbol;
   });
 
-  // có người vào mới
-  socketService.getSocket().on("room:player-joined", (data) => {
-    messages.value.push({
-      senderName: "Hệ thống",
-      message: `${data.name} đã vào phòng`,
-    });
-  });
-
-  // Cập nhật state game từ backend
+  // Backend gửi state game
   socketService.getSocket().on("update_game_state", (state) => {
+    console.log("📌 update_game_state", state);
+
     board.value = state.board;
     players.value = state.players;
     currentTurnId.value = state.currentTurnId;
   });
 
-  // Nhận tin nhắn chat mới
+  // Chat message mới
   socketService.getSocket().on("new_message", (msg) => {
     messages.value.push(msg);
   });
 
+  // Người chơi mới vào phòng
+  socketService.getSocket().on("room:player-joined", (data) => {
+    messages.value.push({
+      senderName: "Hệ thống",
+      message: `${data.name} đã vào phòng.`,
+    });
+  });
+
   socketService.getSocket().on("error", (err) => {
-    console.log("⚠ Backend error:", err);
     alert(err.message);
   });
 });
@@ -101,9 +106,9 @@ onBeforeUnmount(() => {
   socketService.offAll();
 });
 
-/* =======================================
-            USER ACTIONS
-======================================= */
+/* ===============================
+        USER ACTIONS
+================================= */
 
 // gửi nước đi
 function handleMove(index) {
@@ -114,7 +119,7 @@ function handleMove(index) {
   });
 }
 
-// gửi tin nhắn chat
+// gửi chat
 function sendMessage(text) {
   socketService.sendMessage(roomId, text);
 }

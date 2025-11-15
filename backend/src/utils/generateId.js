@@ -1,3 +1,8 @@
-export function generateId() {
-  return Math.random().toString(36).substring(2, 7);
+export function generateId(len = 5) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "";
+  for (let i = 0; i < len; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return id;
 }

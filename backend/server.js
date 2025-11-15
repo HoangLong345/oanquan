@@ -1,14 +1,23 @@
+import express from "express";
 import http from "http";
-import app from "./src/app.js";
-import { initSocket } from "./config/socket.config.js";
+import { Server } from "socket.io";
+import cors from "cors";
+import { registerRoomHandlers } from "./src/sockets/room.socket.js";
 
-const PORT = 3000;
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" },
+});
 
-// Khởi động socket.io
-initSocket(server);
+io.on("connection", (socket) => {
+  console.log("🟢 Client connected:", socket.id);
+  registerRoomHandlers(io, socket);
+});
 
-server.listen(PORT, () => {
-  console.log(`🔥 Backend đang chạy tại http://localhost:${PORT}`);
+server.listen(3000, () => {
+  console.log("🚀 Server chạy cổng 3000");
 });

@@ -2,20 +2,22 @@
   <div class="game-wrapper">
     <h2>Bàn chơi Ô Ăn Quan</h2>
 
-    <!-- Board -->
+    <!-- BOARD -->
     <div class="board">
       <div
         v-for="(cell, index) in board"
         :key="index"
-        :class="['cell', { clickable: canMove(index) }]"
+        :class="['cell', { clickable: isClickable(index) }]"
         @click="handleClick(index)"
       >
         <span>{{ cell }}</span>
       </div>
     </div>
 
-    <!-- Turn -->
-    <div class="turn-box"><strong>Lượt của:</strong> {{ currentTurnName }}</div>
+    <!-- TURN INFO -->
+    <div class="turn-box">
+      <strong>Lượt của:</strong> {{ currentTurnName }}
+    </div>
   </div>
 </template>
 
@@ -23,31 +25,31 @@
 import { computed } from "vue";
 
 const props = defineProps({
-  board: Array,
-  currentTurnId: String,
-  players: Array,
-  playerId: String,
+  board: { type: Array, required: true },
+  players: { type: Array, required: true },
+  playerId: { type: String, required: true },
+  currentTurnId: { type: String, required: true },
 });
 
 const emits = defineEmits(["move"]);
 
-// Xác định tên người đang chơi
+// Tên người đang chơi
 const currentTurnName = computed(() => {
-  const p = props.players.find((p) => p.id === props.currentTurnId);
+  const p = props.players.find((x) => x.id === props.currentTurnId);
   return p ? p.name : "Đang chờ";
 });
 
-// Kiểm tra ô có thể click không
-function canMove(index) {
-  // Ví dụ: chỉ được click ô dân (không phải ô quan)
+// Ô có thể bấm được không
+function isClickable(index) {
+  // Không cho bấm vào 2 ô Quan
   if (index === 0 || index === props.board.length - 1) return false;
 
-  // Chỉ lượt của mình mới được đi
-  return props.currentTurnId === props.playerId;
+  // Chỉ được bấm khi tới lượt mình
+  return props.playerId === props.currentTurnId;
 }
 
 function handleClick(index) {
-  if (!canMove(index)) return;
+  if (!isClickable(index)) return;
   emits("move", index);
 }
 </script>

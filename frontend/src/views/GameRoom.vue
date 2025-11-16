@@ -85,7 +85,7 @@ onMounted(() => {
   });
 
   // Chat message mới
-  socketService.getSocket().on("new_message", (msg) => {
+  socketService.getSocket().on("chat:receive", (msg) => {
     messages.value.push(msg);
   });
 
@@ -121,7 +121,7 @@ function handleMove(index) {
 
 // gửi chat
 function sendMessage(text) {
-  socketService.sendMessage(roomId, text);
+  socketService.sendMessage(roomId, playerName.value, text);
 }
 </script>
 

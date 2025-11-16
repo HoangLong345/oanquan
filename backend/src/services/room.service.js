@@ -1,21 +1,21 @@
-import { generateId } from "../utils/generateId.js";
-import { rooms } from "../data/rooms.js";
+// ... imports
+import { initialBoard } from "../sockets/room.socket.js"; // Import hàm initialBoard
 
 export function createRoom(playerName, socketId) {
   const roomId = generateId(5);
 
   rooms[roomId] = {
     id: roomId,
-    board: null, // board sẽ được tạo khi join
+    board: initialBoard(), // <--- Gán bàn cờ ngay khi tạo
     players: [],
-    currentTurnId: null,
+    currentTurnId: socketId, // <--- Gán lượt chơi cho người tạo phòng
   };
 
   const player = {
     id: socketId,
     name: playerName,
     symbol: "A",
-    score: 0,
+    // score: 0, // Bạn có thể thêm điểm số sau
   };
 
   rooms[roomId].players.push(player);

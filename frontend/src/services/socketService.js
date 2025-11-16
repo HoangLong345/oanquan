@@ -59,9 +59,26 @@ function onError(cb) {
   // FIX: backend emit "error"
   getSocket().on("error", cb);
 }
+function makeMove(payload) {
+  // payload sẽ có dạng { roomId, playerId, startIndex }
+  getSocket().emit("game:move", payload);
+}
+function sendMessage(roomId, playerName, text) {
+  // Thêm playerName
+  getSocket().emit("chat:send", {
+    roomId,
+    message: text,
+    senderName: playerName, // <--- Gửi kèm tên
+  });
+}
 
+// Thêm hàm này
+function onNewMessage(cb) {
+  getSocket().on("chat:receive", cb); // <--- Lắng nghe sự kiện "chat:receive"
+}
 function offAll() {
   if (!socket) return;
+  socket.off("chat:receive");
 
   socket.off("room:created");
   socket.off("room:joined");
@@ -74,8 +91,11 @@ export default {
   connect,
   createRoom,
   joinRoom,
+  makeMove,
   onRoomCreated,
   onRoomJoined,
+  onNewMessage,
+  sendMessage,
   onUpdateGameState,
   onPlayerJoined,
   onError,

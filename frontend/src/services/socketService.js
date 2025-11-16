@@ -27,78 +27,162 @@ function getSocket() {
   return socket ?? connect();
 }
 
-/* ================= EMIT ================= */
+/* ================= EMIT (Gửi sự kiện LÊN server) ================= */
+// ĐÃ CẬP NHẬT: Tên sự kiện dùng (dấu gạch dưới) để khớp với gameManager.js
 
+/**
+ * (C -> S) Yêu cầu tạo phòng mới
+ */
 function createRoom(playerName) {
-  getSocket().emit("room:create", { playerName });
+  // SỬA: "room:create" -> "create_room"
+  getSocket().emit("create_room", { playerName });
 }
 
+/**
+ * (C -> S) Yêu cầu tham gia phòng
+ */
 function joinRoom(roomId, playerName) {
-  getSocket().emit("room:join", { roomId, playerName });
+  // SỬA: "room:join" -> "join_room"
+  getSocket().emit("join_room", { roomId, playerName });
 }
 
-/* ================= ON ================= */
-
-function onRoomCreated(cb) {
-  getSocket().on("room:created", cb);
+/**
+ * (C -> S) Gửi một nước đi
+ * payload sẽ có dạng { cellIndex, direction }
+ */
+function joinMatchmaking(playerName) {
+  getSocket().emit("join_matchmaking", { playerName }); //
 }
-
-function onRoomJoined(cb) {
-  getSocket().on("room:joined", cb);
-}
-
-function onUpdateGameState(cb) {
-  getSocket().on("update_game_state", cb);
-}
-
-function onPlayerJoined(cb) {
-  getSocket().on("room:player-joined", cb);
-}
-
-function onError(cb) {
-  // FIX: backend emit "error"
-  getSocket().on("error", cb);
+function onQueueUpdate(cb) {
+  getSocket().on("join_matchmaking", cb); //
 }
 function makeMove(payload) {
-  // payload sẽ có dạng { roomId, playerId, startIndex }
-  getSocket().emit("game:move", payload);
+  // SỬA: "game:move" -> "make_move"
+  getSocket().emit("make_move", payload);
 }
-function sendMessage(roomId, playerName, text) {
-  // Thêm playerName
-  getSocket().emit("chat:send", {
-    roomId,
-    message: text,
-    senderName: playerName, // <--- Gửi kèm tên
+
+/**
+ * (C -> S) Gửi tin nhắn
+ */
+function sendMessage(messageText) {
+  // SỬA: "chat:send" -> "send_message"
+  getSocket().emit("send_message", {
+    message: messageText,
   });
 }
 
-// Thêm hàm này
-function onNewMessage(cb) {
-  getSocket().on("chat:receive", cb); // <--- Lắng nghe sự kiện "chat:receive"
+/**
+ * (C -> S) THÊM MỚI: Rời phòng
+ */
+function leaveRoom() {
+  getSocket().emit("leave_room"); //
 }
+
+/* ================= ON (Lắng nghe sự kiện TỪ server) ================= */
+// ĐÃ CẬP NHẬT: Tên sự kiện để khớp với gameManager.js
+
+/**
+ * (S -> C) Server xác nhận TẠO PHÒNG thành công (chỉ gửi cho người tạo)
+ */
+function onRoomCreated(cb) {
+  // SỬA: "room:created" -> "room_created"
+  getSocket().on("room_created", cb);
+}
+
+/**
+ * (S -> C) Server báo game BẮT ĐẦU (gửi cho cả 2)
+ */
+function onGameStart(cb) {
+  // SỬA: "room:joined" -> "game_start"
+  getSocket().on("game_start", cb);
+}
+
+/**
+ * (S -> C) Server cập nhật lại bàn cờ sau một nước đi
+ */
+function onUpdateGameState(cb) {
+  getSocket().on("update_game_state", cb); // Tên này vẫn giữ nguyên
+}
+
+/**
+ * (S -> C) Nhận được tin nhắn mới
+ */
+function onNewMessage(cb) {
+  // SỬA: "chat:receive" -> "new_message"
+  getSocket().on("new_message", cb);
+}
+
+/**
+ * (S -> C) Server báo lỗi (VD: phòng đầy, phòng không tồn tại)
+ */
+function onError(cb) {
+  getSocket().on("error", cb); // Tên này vẫn giữ nguyên
+}
+
+/**
+ * (S -> C) THÊM MỚI: Nước đi không hợp lệ
+ */
+function onInvalidMove(cb) {
+  getSocket().on("invalid_move", cb); //
+}
+
+/**
+ * (S -> C) THÊM MỚI: Game kết thúc
+ */
+function onGameOver(cb) {
+  getSocket().on("game_over", cb); //
+}
+
+/**
+ * (S -> C) THÊM MỚI: Bị đá về menu (do đối thủ thoát)
+ */
+function onKickedToMenu(cb) {
+  getSocket().on("kicked_to_menu", cb); //
+}
+
+/**
+ * Gỡ bỏ tất cả các trình lắng nghe
+ */
 function offAll() {
   if (!socket) return;
-  socket.off("chat:receive");
 
-  socket.off("room:created");
-  socket.off("room:joined");
+  // ĐÃ CẬP NHẬT TÊN SỰ KIỆN
+  socket.off("room_created");
+  socket.off("game_start");
   socket.off("update_game_state");
-  socket.off("room:player-joined");
-  socket.off("error"); // FIX
+  socket.off("join_matchmaking");
+  socket.off("make_move");
+  socket.off("send_message");
+  socket.off("leave_room");
+  socket.off("new_message");
+  socket.off("error");
+  socket.off("invalid_move");
+  socket.off("game_over");
+  socket.off("kicked_to_menu");
 }
 
 export default {
   connect,
+  getSocket,
+
+  // Emits (Gửi đi)
   createRoom,
   joinRoom,
   makeMove,
-  onRoomCreated,
-  onRoomJoined,
-  onNewMessage,
   sendMessage,
+  leaveRoom,
+  joinMatchmaking,
+
+  // Ons (Lắng nghe)
+  onQueueUpdate,
+  onRoomCreated,
+  onGameStart,
   onUpdateGameState,
-  onPlayerJoined,
+  onNewMessage,
   onError,
+  onInvalidMove,
+  onGameOver,
+  onKickedToMenu,
+
   offAll,
-  getSocket,
 };

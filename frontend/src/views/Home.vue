@@ -1,6 +1,5 @@
 <template>
   <div class="home-page">
-    <!-- ================= BANNER ================= -->
     <section class="banner">
       <div class="banner-overlay"></div>
 
@@ -11,12 +10,10 @@
       </div>
     </section>
 
-    <!-- ================= FORM TẠO / VÀO PHÒNG ================= -->
     <section class="join-section" ref="formSection">
       <h2>Tạo phòng hoặc tham gia phòng</h2>
 
       <div class="form-container">
-        <!-- Chơi ngay -->
         <div class="card">
           <h3>Chơi ngay</h3>
 
@@ -28,7 +25,6 @@
           <button class="btn-create" @click="handleQuickPlay">Chơi ngay</button>
         </div>
 
-        <!-- Tạo phòng -->
         <div class="card">
           <h3>Tạo phòng mới</h3>
 
@@ -46,7 +42,6 @@
           </button>
         </div>
 
-        <!-- Vào phòng -->
         <div class="card">
           <h3>Vào phòng</h3>
 
@@ -76,7 +71,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
+// ⭐ SỬA LỖI: Xóa onBeforeUnmount
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import socketService from "../services/socketService";
 
@@ -87,7 +83,7 @@ const createName = ref("");
 const joinRoomId = ref("");
 const joinName = ref("");
 
-// tên người tạo phòng (quick play hoặc create room)
+// Biến này sẽ lưu tên người chơi cho bất kỳ hành động nào
 const currentPlayerName = ref("");
 
 const errorMessage = ref("");
@@ -99,76 +95,109 @@ function scrollToSection() {
   formSection.value.scrollIntoView({ behavior: "smooth" });
 }
 
+// ======================================================
+// ⭐ LOGIC onMounted ĐÃ SỬA HOÀN CHỈNH
+// ======================================================
 onMounted(() => {
+  // 1. Lắng nghe "Tạo phòng" (Dành cho P1)
   socketService.onRoomCreated((payload) => {
     lastRoomId.value = payload.roomId;
 
+    // Người tạo phòng (P1) sẽ chuyển trang TẠI ĐÂY
     router.push({
       name: "GameRoom",
       params: { roomId: payload.roomId },
       query: {
-        playerName: currentPlayerName.value, // ⭐ SỬA Ở ĐÂY
+        // Gửi thông tin P1 qua Query
+        playerName: currentPlayerName.value,
         playerId: payload.playerId,
         playerSymbol: payload.playerSymbol,
       },
     });
   });
 
+  // 2. Lắng nghe "game_start" (Dành cho P2 "Join" VÀ P1/P2 "Matchmaking")
+  socketService.onGameStart((payload) => {
+    const mySocketId = socketService.getSocket()?.id;
+    const myPlayerInfo = payload.players.find((p) => p.id === mySocketId);
+
+    if (!myPlayerInfo) return; // Không phải game của tôi
+
+    // Kiểm tra xem mình có phải P1 "Tạo phòng" không
+    const amICreator = payload.players[0].id === mySocketId;
+    const usedCreateRoom =
+      createName.value.trim() !== "" &&
+      createName.value.trim() === currentPlayerName.value;
+
+    if (amICreator && usedCreateRoom) {
+      return; // Đã được onRoomCreated xử lý
+    }
+
+    // Nếu là P2 (Vào phòng) HOẶC P1/P2 (Chơi ngay)
+    // -> Chuyển trang và mang theo data
+    router.push({
+      name: "GameRoom",
+      params: { roomId: payload.roomId },
+      query: {
+        // ⭐ GỬI QUERY (SỬA LỖI TỪ image_ae2a43.jpg)
+        playerName: currentPlayerName.value,
+        playerId: myPlayerInfo.id,
+        playerSymbol: myPlayerInfo.symbol,
+      },
+      state: { initialState: payload }, // Gửi state bàn cờ
+    });
+  });
+
+  // 3. Lắng nghe lỗi (Giữ nguyên)
   socketService.onError((payload) => {
     errorMessage.value = payload?.message || "Có lỗi xảy ra.";
   });
-});
 
-onBeforeUnmount(() => {
-  socketService.offAll();
-});
+  // 4. THÊM: Lắng nghe hàng chờ
+  socketService.onQueueUpdate((payload) => {
+    errorMessage.value = payload.message;
+  });
+}); // Kết thúc onMounted
+
+// ⭐ SỬA LỖI: Đã XÓA BỎ onBeforeUnmount
 
 // ================= XỬ LÝ =================
 
-// Chơi ngay
+// ⭐ SỬA LẠI: handleQuickPlay
 function handleQuickPlay() {
   if (!quickName.value.trim()) {
     errorMessage.value = "Vui lòng nhập tên.";
     return;
   }
-
-  currentPlayerName.value = quickName.value.trim(); // ⭐ Lưu tên
+  currentPlayerName.value = quickName.value.trim(); // ⭐ LƯU TÊN
   errorMessage.value = "";
 
-  socketService.createRoom(quickName.value.trim());
+  // SỬA: "createRoom" -> "joinMatchmaking"
+  socketService.joinMatchmaking(quickName.value.trim());
 }
 
-// Tạo phòng
+// ⭐ SỬA LẠI: handleCreateRoom
 function handleCreateRoom() {
   if (!createName.value.trim()) {
     errorMessage.value = "Vui lòng nhập tên.";
     return;
   }
-
-  currentPlayerName.value = createName.value.trim(); // ⭐ Lưu tên
+  currentPlayerName.value = createName.value.trim(); // ⭐ LƯU TÊN
   errorMessage.value = "";
-
   socketService.createRoom(createName.value.trim());
 }
 
-// Vào phòng
+// ⭐ SỬA LẠI: handleJoinRoom
 function handleJoinRoom() {
   if (!joinRoomId.value.trim() || !joinName.value.trim()) {
     errorMessage.value = "Vui lòng nhập đầy đủ ID phòng và tên.";
     return;
   }
-
+  currentPlayerName.value = joinName.value.trim(); // ⭐ LƯU TÊN
   errorMessage.value = "";
 
+  // Chỉ gửi sự kiện, onGameStart sẽ xử lý
   socketService.joinRoom(joinRoomId.value.trim(), joinName.value.trim());
-
-  router.push({
-    name: "GameRoom",
-    params: { roomId: joinRoomId.value.trim() },
-    query: {
-      playerName: joinName.value.trim(),
-    },
-  });
 }
 </script>
 
@@ -242,6 +271,7 @@ function handleJoinRoom() {
 }
 
 /* ================= FORM ================= */
+/* ⭐ SỬA: Lỗi cú pháp "join:section" -> "join-section" */
 .join-section {
   margin-top: -120px;
   padding: 100px 20px 70px;
@@ -282,12 +312,21 @@ function handleJoinRoom() {
   margin-bottom: 16px;
 }
 
+.card label {
+  display: block;
+  text-align: left;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
 .card input {
   width: 100%;
   padding: 12px 14px;
   margin-bottom: 10px;
   border-radius: 10px;
   border: 1px solid #ccc;
+  box-sizing: border-box;
 }
 
 .btn-create,
@@ -310,7 +349,21 @@ function handleJoinRoom() {
 
 .error {
   color: #d50000;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px;
+  border-radius: 8px;
+  display: inline-block;
   margin-top: 16px;
+  font-weight: 500;
+}
+
+.info-box {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: rgba(26, 137, 23, 0.767);
+  color: white;
+  border-radius: 8px;
+  display: inline-block;
 }
 
 @keyframes fadeUp {
